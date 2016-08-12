@@ -3,6 +3,7 @@ import mxnet as mx
 import argparse
 import os, sys
 import train_model
+import threading
 
 def _download(data_dir):
     if not os.path.isdir(data_dir):
@@ -134,11 +135,7 @@ def parse_args():
                         help='the number of epoch to factor the lr, could be .5')
     return parser.parse_args()
 
-
-if __name__ == '__main__':
-    args = parse_args()
-
-
+def train():
     if args.network == 'mlp':
         data_shape = (784, )
         net = get_mlp()
@@ -151,3 +148,52 @@ if __name__ == '__main__':
 
     # train
     train_model.fit(args, net, get_iterator(data_shape))
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    num_app_threads = args.num_app_threads
+    # Initialize PS
+    print("Initializing PS environment\n")
+    #shared_ptr<caffe::CaffeEngine<float> >
+    #   caffe_engine(new caffe::CaffeEngine<float>(solver_param));
+    print("Tables get ready\n")
+    #petuum::PSTableGroup::CreateTableDone();
+    print("PS initialization done.\n")
+    if args.num_clients > 1 and (args.svb and args.num_ip_layers > 0):
+        use_svb = True
+
+    # Train
+    #LOG(INFO) << "Starting NN with " << num_app_threads << " worker threads "
+    #   << "on client " << FLAGS_client_id;
+    print("Starting NN with %d worker threads on client %d\n" % (num_app_threads, args.client_id))
+    def train_func(args1, thread_id):
+        """Thread entry"""
+        while True:
+            print args1,thread_id
+            train()
+    train_threads = [threading.Thread(target=train_func, args=[args, i]) \
+                    for i in range(num_app_threads)]
+    for thread in train_threads:
+        thread.setDaemon(True)
+        thread.start()
+
+    # SVB
+    def svb_func(args1, thread_id):
+        """Thread entry"""
+        while True:
+            print args1,thread_id
+    #shared_ptr<caffe::SVBWorker<float> > svb_worker;
+    if use_svb:
+        svb_worker_thread = threading.Thread(target=svb_func, args=[args, i])
+        svb_worker_thread.setDaemon(True)
+        svb_worker_thread.start()
+
+    # Finish
+    for thread in train_threads:
+        thread.join()
+    if use_svb:
+        svb_worker_thread.join()
+    print("Optimization Done.\n")
+    #  petuum::PSTableGroup::ShutDown();
+    print("NN finished and shut down!\n")
