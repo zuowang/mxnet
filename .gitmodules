@@ -7,3 +7,6 @@
 [submodule "ps-lite"]
 	path = ps-lite
 	url = https://github.com/dmlc/ps-lite
+[submodule "poseidon"]
+	path = poseidon
+	url = https://github.com/zuowang/poseidon.git
