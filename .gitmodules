@@ -13,3 +13,6 @@
 [submodule "ps"]
 	path = ps
 	url = https://github.com/zuowang/ps.git
+[submodule "MXNet.cpp"]
+	path = MXNet.cpp
+	url = https://github.com/dmlc/MXNet.cpp.git
