@@ -10,3 +10,6 @@
 [submodule "poseidon"]
 	path = poseidon
 	url = https://github.com/zuowang/poseidon.git
+[submodule "ps"]
+	path = ps
+	url = https://github.com/zuowang/ps.git
