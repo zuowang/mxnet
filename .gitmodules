@@ -16,3 +16,6 @@
 [submodule "MXNet.cpp"]
 	path = MXNet.cpp
 	url = https://github.com/dmlc/MXNet.cpp.git
+[submodule "third_party"]
+	path = third_party
+	url = https://github.com/petuum/third_party.git
