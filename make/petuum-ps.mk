@@ -29,12 +29,13 @@ PETUUM_LDFLAGS_DIRS = -Wl,-rpath,$(PETUUM_THIRD_PARTY_LIB) \
           -L$(PETUUM_THIRD_PARTY_LIB)
 PETUUM_LDFLAGS_LIBS = -pthread -lrt -lnsl -luuid \
           -lzmq \
-          -lglog \
+          -lboost_thread \
+          -lboost_system \
           -lgflags \
           -ltcmalloc \
           -lconfig++ \
-	  -lyaml-cpp \
-	  -lleveldb \
+          -lyaml-cpp \
+          -lleveldb \
           -lnuma
 PETUUM_PS_LIB = $(PETUUM_LIB)/libpetuum-ps.a
 PETUUM_PS_SN_LIB = $(PETUUM_LIB)/libpetuum-ps-sn.a
