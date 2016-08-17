@@ -89,6 +89,16 @@ ifeq ($(USE_DIST_KVSTORE), 1)
 	LDFLAGS += $(PS_LDFLAGS_A)
 endif
 
+# petuum-ps
+PETUUM_ROOT = $(ROOTDIR)/ps
+include $(ROOTDIR)/make/petuum-ps.mk
+CFLAGS += $(PETUUM_INCFLAGS)
+CFLAGS += $(PETUUM_CXXFLAGS)
+LIB_DEP += $(PETUUM_PS_LIB)
+LDFLAGS += $(PETUUM_LDFLAGS_DIRS)
+LDFLAGS += $(PETUUM_LDFLAGS_LIBS)
+
+
 .PHONY: clean all test lint doc clean_all rcpplint rcppexport roxygen
 
 all: lib/libmxnet.a lib/libmxnet.so $(BIN)
