@@ -8,6 +8,8 @@
 #include <dmlc/io.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/recordio.h>
+#include <petuum_ps_common/include/petuum_ps.hpp>
+#include <petuum_ps_common/include/ps_table_group.hpp>
 #include <mxnet/base.h>
 #include <mxnet/ndarray.h>
 #include <mxnet/symbolic.h>
@@ -1571,5 +1573,217 @@ int MXOptimizerUpdate(OptimizerHandle handle,
 int MXCustomOpRegister(const char* op_type, CustomOpPropCreator creator) {
   API_BEGIN();
   mxnet::op::CustomOpProp::Register(op_type, creator);
+  API_END();
+}
+
+
+enum TypeFlag {
+    TFloat32 = 0,
+    TFloat64 = 1,
+    TUint8 = 2,
+    TInt32 = 3
+};
+
+#define PS_TYPE_SWITCH(type, DType, ...)           \
+  switch (type) {                                 \
+  case TFloat32:                                  \
+    {                                              \
+      typedef float DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
+  case TFloat64:                                    \
+    {                                               \
+      typedef double DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
+  case TUint8:                                      \
+    {                                               \
+      typedef uint8_t DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
+  case TInt32:                                     \
+    {                                               \
+      typedef int32_t DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
+  default:                                          \
+    LOG(FATAL) << "Unknown type enum " << type;     \
+  }
+
+int MXPSRegisterDenseRow(int dtype, int row_type) {
+  API_BEGIN();
+  PS_TYPE_SWITCH(dtype, DType, {
+    petuum::PSTableGroup::RegisterRow<petuum::DenseRow<DType> >(row_type);
+  });
+  API_END();
+}
+
+int MXPSInit(const char* stats_path,
+             int32_t num_comm_channels_per_client,
+             int32_t num_tables,
+             int32_t num_total_clients,
+             int32_t num_local_app_threads,
+             bool aggressive_clock,
+             bool aggressive_cpu,
+             int32_t snapshot_clock,
+             int32_t resume_clock,
+             int32_t update_sort_policy,
+             int32_t bg_idle_milli,
+             double client_bandwidth_mbps,
+             double server_bandwidth_mbps,
+             size_t thread_oplog_batch_size,
+             long row_candidate_factor,
+             bool numa_opt,
+             int32_t numa_index,
+             int32_t numa_policy,
+             bool naive_table_oplog_meta,
+             bool suppression_on,
+             bool use_approx_sort,
+             size_t num_zmq_threads,
+             int num_hosts,
+             const int *ids,
+             const char **hosts,
+             const char **ports,
+             bool table_access,
+             int* init_thread_id) {
+  API_BEGIN();
+  petuum::TableGroupConfig table_group_config;
+  table_group_config.stats_path = std::string(stats_path);
+  table_group_config.num_comm_channels_per_client = num_comm_channels_per_client;
+  table_group_config.num_tables = num_tables;
+  table_group_config.num_total_clients = num_total_clients;
+  table_group_config.num_local_app_threads = num_local_app_threads;
+  table_group_config.aggressive_clock = aggressive_clock;
+  table_group_config.aggressive_cpu = aggressive_cpu;
+  table_group_config.snapshot_clock = snapshot_clock;
+  table_group_config.resume_clock = resume_clock;
+  table_group_config.update_sort_policy = static_cast<petuum::UpdateSortPolicy>(update_sort_policy);
+  table_group_config.bg_idle_milli = bg_idle_milli;
+  table_group_config.client_bandwidth_mbps = client_bandwidth_mbps;
+  table_group_config.server_bandwidth_mbps = server_bandwidth_mbps;
+  table_group_config.thread_oplog_batch_size = thread_oplog_batch_size;
+  table_group_config.row_candidate_factor = row_candidate_factor;
+  table_group_config.numa_opt = numa_opt;
+  table_group_config.numa_index = numa_index;
+  table_group_config.numa_policy = static_cast<petuum::NumaPolicy>(numa_policy);
+  table_group_config.naive_table_oplog_meta = naive_table_oplog_meta;
+  table_group_config.suppression_on = suppression_on;
+  table_group_config.use_approx_sort = use_approx_sort;
+  table_group_config.num_zmq_threads = num_zmq_threads;
+  for (int i = 0; i < num_hosts; ++i) {
+    table_group_config.host_map.insert(
+        std::make_pair(ids[i], petuum::HostInfo(ids[i], hosts[i], ports[i])));
+  }
+  *init_thread_id = petuum::PSTableGroup::Init(table_group_config, table_access);
+  API_END();
+}
+
+int MXPSCreateTable(int table_id,
+                    int32_t table_staleness,
+                    int32_t row_type,
+                    size_t row_capacity,
+                    bool oplog_dense_serialized,
+                    int32_t row_oplog_type,
+                    size_t dense_row_oplog_capacity,
+                    size_t server_push_row_upper_bound,
+                    int32_t server_table_logic,
+                    bool version_maintain,
+                    size_t process_cache_capacity,
+                    size_t thread_cache_capacity,
+                    size_t oplog_capacity,
+                    int32_t oplog_type,
+                    int32_t append_only_oplog_type,
+                    size_t append_only_buff_capacity,
+                    size_t per_thread_append_only_buff_pool_size,
+                    int32_t bg_apply_append_oplog_freq,
+                    int32_t process_storage_type,
+                    bool no_oplog_replay,
+                    size_t client_send_oplog_upper_bound,
+                    bool* ret) {
+  API_BEGIN();
+  petuum::ClientTableConfig table_config;
+  table_config.table_info.table_staleness = table_staleness;
+  table_config.table_info.row_type = row_type;
+  table_config.table_info.row_capacity = row_capacity;
+  table_config.table_info.oplog_dense_serialized =oplog_dense_serialized;
+  table_config.table_info.row_oplog_type = row_oplog_type;
+  table_config.table_info.dense_row_oplog_capacity = dense_row_oplog_capacity;
+  table_config.table_info.server_push_row_upper_bound = server_push_row_upper_bound;
+  table_config.table_info.server_table_logic = server_table_logic;
+  table_config.table_info.version_maintain = version_maintain;
+  table_config.process_cache_capacity = process_cache_capacity;
+  table_config.thread_cache_capacity = thread_cache_capacity;
+  table_config.oplog_capacity = oplog_capacity;
+  table_config.oplog_type = static_cast<petuum::OpLogType>(oplog_type);
+  table_config.append_only_oplog_type = static_cast<petuum::AppendOnlyOpLogType>(append_only_oplog_type);
+  table_config.append_only_buff_capacity = append_only_buff_capacity;
+  table_config.per_thread_append_only_buff_pool_size = per_thread_append_only_buff_pool_size;
+  table_config.bg_apply_append_oplog_freq = bg_apply_append_oplog_freq;
+  table_config.process_storage_type = static_cast<petuum::ProcessStorageType>(process_storage_type);
+  table_config.no_oplog_replay = no_oplog_replay;
+  table_config.client_send_oplog_upper_bound = client_send_oplog_upper_bound;
+  *ret = petuum::PSTableGroup::CreateTable(table_id, table_config);
+  API_END();
+}
+
+int MXPSCreateTableDone() {
+  API_BEGIN();
+  petuum::PSTableGroup::CreateTableDone();
+  API_END();
+}
+
+int MXPSRegisterThread(int* ret) {
+  API_BEGIN();
+  *ret = petuum::PSTableGroup::RegisterThread();
+  API_END();
+}
+
+// dtype can be float, double, uint8_t, int32_t
+int MXPSGetTableOrDie(int dtype, int table_id, PSTable* out) {
+  return _MXPSGetTableOrDieImpl(dtype, table_id, out);
+}
+
+int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTable* out) {
+  PS_TYPE_SWITCH(dtype, DType, {
+    petuum::Table<DType>* ptr = new petuum::Table<DType>();
+    API_BEGIN();
+    *ptr = petuum::PSTableGroup::GetTableOrDie<DType>(table_id);
+    *out = ptr;
+    API_END_HANDLE_ERROR(delete ptr);
+  });
+  return -1;
+}
+
+int MXPSDeregisterThread() {
+  API_BEGIN();
+  petuum::PSTableGroup::DeregisterThread();
+  API_END();
+}
+
+int MXPSWaitThreadRegister() {
+  API_BEGIN();
+  petuum::PSTableGroup::WaitThreadRegister();
+  API_END();
+}
+
+int MXPSShutDown() {
+  API_BEGIN();
+  petuum::PSTableGroup::ShutDown();
+  API_END();
+}
+
+int MXPSClock() {
+  API_BEGIN();
+  petuum::PSTableGroup::Clock();
+  API_END();
+}
+
+int MXPSGlobalBarrier() {
+  API_BEGIN();
+  petuum::PSTableGroup::GlobalBarrier();
   API_END();
 }

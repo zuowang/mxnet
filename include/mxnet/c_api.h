@@ -57,6 +57,8 @@ typedef void *OptimizerCreator;
 /*! \brief handle to Optimizer*/
 typedef void *OptimizerHandle;
 
+typedef void *PSTable;
+
 MXNET_EXTERN_C typedef void (*ExecutorMonitorCallback)(const char*,
                                                        NDArrayHandle,
                                                        void *);
@@ -1416,5 +1418,77 @@ MXNET_DLL int MXOptimizerUpdate(OptimizerHandle handle,
                                 mx_float wd);
 
 MXNET_DLL int MXCustomOpRegister(const char* op_type, CustomOpPropCreator creator);
+
+MXNET_DLL int MXPSRegisterDenseRow(int dtype, int row_type);
+
+MXNET_DLL int MXPSInit(const char* stats_path,
+                       int32_t num_comm_channels_per_client,
+                       int32_t num_tables,
+                       int32_t num_total_clients,
+                       int32_t num_local_app_threads,
+                       bool aggressive_clock,
+                       bool aggressive_cpu,
+                       int32_t snapshot_clock,
+                       int32_t resume_clock,
+                       int32_t update_sort_policy,
+                       int32_t bg_idle_milli,
+                       double client_bandwidth_mbps,
+                       double server_bandwidth_mbps,
+                       size_t thread_oplog_batch_size,
+                       long row_candidate_factor,
+                       bool numa_opt,
+                       int32_t numa_index,
+                       int32_t numa_policy,
+                       bool naive_table_oplog_meta,
+                       bool suppression_on,
+                       bool use_approx_sort,
+                       size_t num_zmq_threads,
+                       int num_hosts,
+                       const int *ids,
+                       const char **hosts,
+                       const char **ports,
+                       bool table_access,
+                       int* init_thread_id);
+
+MXNET_DLL int MXPSCreateTable(int table_id,
+                              int32_t table_staleness,
+                              int32_t row_type,
+                              size_t row_capacity,
+                              bool oplog_dense_serialized,
+                              int32_t row_oplog_type,
+                              size_t dense_row_oplog_capacity,
+                              size_t server_push_row_upper_bound,
+                              int32_t server_table_logic,
+                              bool version_maintain,
+                              size_t process_cache_capacity,
+                              size_t thread_cache_capacity,
+                              size_t oplog_capacity,
+                              int32_t oplog_type,
+                              int32_t append_only_oplog_type,
+                              size_t append_only_buff_capacity,
+                              size_t per_thread_append_only_buff_pool_size,
+                              int32_t bg_apply_append_oplog_freq,
+                              int32_t process_storage_type,
+                              bool no_oplog_replay,
+                              size_t client_send_oplog_upper_bound,
+                              bool* ret);
+
+MXNET_DLL int MXPSCreateTableDone();
+
+MXNET_DLL int MXPSRegisterThread(int* ret);
+
+MXNET_DLL int MXPSGetTableOrDie(int dtype, int table_id, PSTable* out);
+
+MXNET_DLL int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTable* out);
+
+MXNET_DLL int MXPSDeregisterThread();
+
+MXNET_DLL int MXPSWaitThreadRegister();
+
+MXNET_DLL int MXPSShutDown();
+
+MXNET_DLL int MXPSClock();
+
+MXNET_DLL int MXPSGlobalBarrier();
 
 #endif  // MXNET_C_API_H_
