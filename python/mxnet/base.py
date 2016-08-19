@@ -59,6 +59,7 @@ RecordIOHandle = ctypes.c_void_p
 RtcHandle = ctypes.c_void_p
 OptimizerHandle = ctypes.c_void_p
 OptimizerCreator = ctypes.c_void_p
+PSTableHandle = ctypes.c_void_p
 #----------------------------
 # helper function definition
 #----------------------------
