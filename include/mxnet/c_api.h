@@ -57,7 +57,7 @@ typedef void *OptimizerCreator;
 /*! \brief handle to Optimizer*/
 typedef void *OptimizerHandle;
 
-typedef void *PSTable;
+typedef void *PSTableHandle;
 
 MXNET_EXTERN_C typedef void (*ExecutorMonitorCallback)(const char*,
                                                        NDArrayHandle,
@@ -1477,9 +1477,9 @@ MXNET_DLL int MXPSCreateTableDone();
 
 MXNET_DLL int MXPSRegisterThread(int* ret);
 
-MXNET_DLL int MXPSGetTableOrDie(int dtype, int table_id, PSTable* out);
+MXNET_DLL int MXPSGetTableOrDie(int dtype, int table_id, PSTableHandle* out);
 
-MXNET_DLL int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTable* out);
+MXNET_DLL int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTableHandle* out);
 
 MXNET_DLL int MXPSDeregisterThread();
 
@@ -1490,5 +1490,32 @@ MXNET_DLL int MXPSShutDown();
 MXNET_DLL int MXPSClock();
 
 MXNET_DLL int MXPSGlobalBarrier();
+
+MXNET_DLL int MXPSTableBatchInc(PSTableHandle handle,
+                                int idx,
+                                int num,
+                                const float* update);
+
+MXNET_DLL int MXPSTableGet(PSTableHandle handle,
+                           int idx,
+                           int num,
+                           float** row);
+
+MXNET_DLL int MXPSTableRelease(float* row);
+
+MXNET_DLL int MXPSTableBatchIncX(PSTableHandle handle,
+                                int num_rows_per_table,
+                                int table_row_capacity,
+                                int num,
+                                const int* keys,
+                                NDArrayHandle* vals);
+
+MXNET_DLL int MXPSTableGetX(PSTableHandle handle,
+                           int num_rows_per_table,
+                           int table_row_capacity,
+                           int clock,
+                           int num,
+                           const int* keys,
+                           NDArrayHandle* vals);
 
 #endif  // MXNET_C_API_H_

@@ -1743,11 +1743,11 @@ int MXPSRegisterThread(int* ret) {
 }
 
 // dtype can be float, double, uint8_t, int32_t
-int MXPSGetTableOrDie(int dtype, int table_id, PSTable* out) {
+int MXPSGetTableOrDie(int dtype, int table_id, PSTableHandle* out) {
   return _MXPSGetTableOrDieImpl(dtype, table_id, out);
 }
 
-int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTable* out) {
+int _MXPSGetTableOrDieImpl(int dtype, int table_id, PSTableHandle* out) {
   PS_TYPE_SWITCH(dtype, DType, {
     petuum::Table<DType>* ptr = new petuum::Table<DType>();
     API_BEGIN();
@@ -1785,5 +1785,119 @@ int MXPSClock() {
 int MXPSGlobalBarrier() {
   API_BEGIN();
   petuum::PSTableGroup::GlobalBarrier();
+  API_END();
+}
+
+int MXPSTableBatchInc(PSTableHandle handle,
+                      int idx,
+                      int num,
+                      const float* update) {
+  API_BEGIN();
+  petuum::Table<float>* table_ptr = static_cast<petuum::Table<float>*>(handle);
+  petuum::UpdateBatch<float> update_batch;
+  for (int i = 0; i < num; ++i) {
+    update_batch.Update(i, update[i]);
+  }
+  table_ptr->BatchInc(idx, update_batch);
+  API_END();
+}
+
+int MXPSTableGet(PSTableHandle handle,
+                 int idx,
+                 int num,
+                 float** row) {
+  API_BEGIN();
+  petuum::RowAccessor row_acc;
+  petuum::Table<float>* table_ptr = static_cast<petuum::Table<float>*>(handle);
+  const auto& r = table_ptr->Get<petuum::DenseRow<float> >(idx, &row_acc);
+  *row = new float[num];
+  for(int i=0; i<num; i++)
+    (*row)[i]=r[i];
+  API_END();
+}
+
+int MXPSTableRelease(float* row) {
+  API_BEGIN();
+  if (row) {
+    delete [] row;
+  }
+  API_END();
+}
+
+int MXPSTableBatchIncX(PSTableHandle handle,
+                       int num_rows_per_table,
+                       int table_row_capacity,
+                       int num,
+                       const int* keys,
+                       NDArrayHandle* vals) {
+  API_BEGIN();
+  int count = 0;
+  for (int i = 0; i < num; ++i) {
+    count += static_cast<NDArray *>(vals[i])->shape().Size();
+  }
+
+  std::vector<float> update(count);
+  int offset = 0;
+  for (int i = 0; i < num; ++i) {
+    NDArray* ptr = static_cast<NDArray*>(vals[i]);
+    ptr->SyncCopyFromCPU(update.data() + offset, ptr->shape().Size());
+    ptr->WaitToRead();
+    offset += ptr->shape().Size();
+  }
+
+  petuum::Table<float>* table_ptr = static_cast<petuum::Table<float>*>(handle);
+  int update_idx = 0;
+  for (int r = 0; r < num_rows_per_table; ++r) {
+    petuum::UpdateBatch<float> update_batch(table_row_capacity);
+    for (int i = 0; i < table_row_capacity; ++i) {
+      update_batch.UpdateSet(i, i, (-1) * update[update_idx]);
+      ++update_idx;
+      if (update_idx >= count) { break; }
+    }
+    table_ptr->BatchInc(r, update_batch);
+    if (update_idx >= count) { break; }
+  }
+  API_END();
+}
+
+int MXPSTableGetX(PSTableHandle handle,
+                  int num_rows_per_table,
+                  int table_row_capacity,
+                  int clock,
+                  int num,
+                  const int* keys,
+                  NDArrayHandle* vals) {
+  API_BEGIN();
+  petuum::Table<float>* table_ptr = static_cast<petuum::Table<float>*>(handle);
+  std::vector<std::vector<float> > row_caches(num_rows_per_table);
+  for (int r_idx = 0; r_idx < num_rows_per_table; ++r_idx) {
+    row_caches[r_idx].resize(table_row_capacity);
+    petuum::RowAccessor row_acc;
+    const auto& r = table_ptr->Get<petuum::DenseRow<float> >(
+            r_idx, &row_acc, clock);
+    r.CopyToVector(&row_caches[r_idx]);
+  }
+
+  int count = 0;
+  for (int i = 0; i < num; ++i) {
+    count += static_cast<NDArray *>(vals[i])->shape().Size();
+  }
+  std::vector<float> data(count);
+  int data_idx = 0;
+  for (int r_idx = 0; r_idx < num_rows_per_table; ++r_idx) {
+    for (int i = 0; i < table_row_capacity; ++i) {
+      data[data_idx] = row_caches[r_idx][i];
+      ++data_idx;
+      if (data_idx >= count) { break; }
+    }
+    if (data_idx >= count) { break; }
+  }
+
+  int offset = 0;
+  for (int i = 0; i < num; ++i) {
+    NDArray* ptr = static_cast<NDArray *>(vals[i]);
+    ptr->SyncCopyFromCPU(data.data() + offset, ptr->shape().Size());
+    ptr->WaitToRead();
+  }
   API_END();
 }
