@@ -5,7 +5,33 @@ from __future__ import absolute_import
 import ctypes
 from .base import _LIB
 from .base import check_call, c_array
-from .base import PSTableHandle
+from .base import PSTableHandle, NDArrayHandle
+from .ndarray import NDArray
+
+def _ctype_key_value(keys, vals):
+    """
+    Return ctype arrays for the key-value args, for internal use
+    """
+    if isinstance(keys, int):
+        if isinstance(vals, NDArray):
+            return (c_array(ctypes.c_int, [keys]),
+                    c_array(NDArrayHandle, [vals.handle]))
+        else:
+            for value in vals:
+                assert(isinstance(value, NDArray))
+            return (c_array(ctypes.c_int, [keys] * len(vals)),
+                    c_array(NDArrayHandle, [value.handle for value in vals]))
+    else:
+        assert(len(keys) == len(vals))
+        for k in keys:
+            assert(isinstance(k, int))
+        c_keys = []
+        c_vals = []
+        for i in range(len(keys)):
+            c_key_i, c_val_i = _ctype_key_value(keys[i], vals[i])
+            c_keys += c_key_i
+            c_vals += c_val_i
+        return (c_array(ctypes.c_int, c_keys), c_array(NDArrayHandle, c_vals))
 
 class PSTable(object):
     @staticmethod
@@ -159,3 +185,55 @@ class PSTable(object):
     @staticmethod
     def global_barrier():
         check_call(_LIB.MXPSGlobalBarrier())
+
+    @staticmethod
+    def table_batch_inc(handle, idx, num, update):
+        check_call(_LIB.MXPSTableBatchInc(handle,
+                                          ctypes.c_int(idx),
+                                          ctypes.c_int(num),
+                                          c_array(ctypes.c_float, update)))
+
+    @staticmethod
+    def table_get(handle, idx, num):
+        row = ctypes.POINTER(ctypes.c_float)()
+        check_call(_LIB.MXPSTableGet(handle,
+                                     ctypes.c_int(idx),
+                                     ctypes.c_int(num),
+                                     ctypes.byref(row)))
+        out = [tuple(row[i]) for i in range(num)]
+        return out
+
+    @staticmethod
+    def table_release(row):
+        check_call(_LIB.MXPSTableRelease(c_array(ctypes.c_float, row)))
+
+    @staticmethod
+    def table_batch_incx(handle,
+                           num_rows_per_table,
+                           table_row_capacity,
+                           key,
+                           out):
+        ckeys, cvals = _ctype_key_value(key, out)
+        check_call(_LIB.MXPSTableBatchIncX(handle,
+                                           ctypes.c_int(num_rows_per_table),
+                                           ctypes.c_int(table_row_capacity),
+                                           ctypes.c_int(len(ckeys)),
+                                           ckeys,
+                                           cvals))
+
+    @staticmethod
+    def table_getx(handle,
+                    num_rows_per_table,
+                    table_row_capacity,
+                    clock,
+                    key,
+                    out):
+        assert(out is not None)
+        ckeys, cvals = _ctype_key_value(key, out)
+        check_call(_LIB.MXPSTableGetX(handle,
+                                      ctypes.c_int(num_rows_per_table),
+                                      ctypes.c_int(table_row_capacity),
+                                      ctypes.c_int(clock),
+                                      ctypes.c_int(len(ckeys)),
+                                      ckeys,
+                                      cvals))
