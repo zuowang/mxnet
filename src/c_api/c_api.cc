@@ -1627,8 +1627,10 @@ int MXPSInit(const char* stats_path,
              int32_t num_tables,
              int32_t num_total_clients,
              int32_t num_local_app_threads,
+             int32_t client_id,
              bool aggressive_clock,
              bool aggressive_cpu,
+             int32_t consistency_model,
              int32_t snapshot_clock,
              int32_t resume_clock,
              int32_t update_sort_policy,
@@ -1657,11 +1659,15 @@ int MXPSInit(const char* stats_path,
   table_group_config.num_tables = num_tables;
   table_group_config.num_total_clients = num_total_clients;
   table_group_config.num_local_app_threads = num_local_app_threads;
+  table_group_config.client_id = client_id;
   table_group_config.aggressive_clock = aggressive_clock;
   table_group_config.aggressive_cpu = aggressive_cpu;
+  table_group_config.consistency_model =
+          static_cast<petuum::ConsistencyModel>(consistency_model);
   table_group_config.snapshot_clock = snapshot_clock;
   table_group_config.resume_clock = resume_clock;
-  table_group_config.update_sort_policy = static_cast<petuum::UpdateSortPolicy>(update_sort_policy);
+  table_group_config.update_sort_policy =
+          static_cast<petuum::UpdateSortPolicy>(update_sort_policy);
   table_group_config.bg_idle_milli = bg_idle_milli;
   table_group_config.client_bandwidth_mbps = client_bandwidth_mbps;
   table_group_config.server_bandwidth_mbps = server_bandwidth_mbps;

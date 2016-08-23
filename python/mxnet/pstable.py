@@ -40,32 +40,34 @@ class PSTable(object):
 
     @staticmethod
     def init(stats_path = "",
-              num_comm_channels_per_client = 1,
-              num_tables = 1,
-              num_total_clients = 1,
-              num_local_app_threads = 2,
-              aggressive_clock = False,
-              aggressive_cpu = False,
-              snapshot_clock = -1,
-              resume_clock = -1,
-              update_sort_policy = 1,#Random
-              bg_idle_milli = 2,
-              client_bandwidth_mbps = 40,
-              server_bandwidth_mbps = 40,
-              thread_oplog_batch_size = 100*1000*1000,
-              row_candidate_factor = 5,
-              numa_opt = False,
-              numa_index = 0,
-              numa_policy = 0,#Even
-              naive_table_oplog_meta = True,
-              suppression_on = False,
-              use_approx_sort = False,
-              num_zmq_threads = 1,
-              num_hosts = None,
-              ids = None,
-              hosts = None,
-              ports = None,
-              table_access = False):
+             num_comm_channels_per_client = 1,
+             num_tables = 1,
+             num_total_clients = 1,
+             num_local_app_threads = 2,
+             client_id = 0,
+             aggressive_clock = False,
+             aggressive_cpu = False,
+             consistency_model = 1, #SSPPush
+             snapshot_clock = -1,
+             resume_clock = -1,
+             update_sort_policy = 1,#Random
+             bg_idle_milli = 2,
+             client_bandwidth_mbps = 40,
+             server_bandwidth_mbps = 40,
+             thread_oplog_batch_size = 100*1000*1000,
+             row_candidate_factor = 5,
+             numa_opt = False,
+             numa_index = 0,
+             numa_policy = 0,#Even
+             naive_table_oplog_meta = True,
+             suppression_on = False,
+             use_approx_sort = False,
+             num_zmq_threads = 1,
+             num_hosts = None,
+             ids = None,
+             hosts = None,
+             ports = None,
+             table_access = False):
         init_thread_id = ctypes.c_int()
         check_call(_LIB.MXPSInit(
             ctypes.c_char_p(stats_path),
@@ -73,8 +75,10 @@ class PSTable(object):
             ctypes.c_int(num_tables),
             ctypes.c_int(num_total_clients),
             ctypes.c_int(num_local_app_threads),
+            ctypes.c_int(client_id),
             ctypes.c_bool(aggressive_clock),
             ctypes.c_bool(aggressive_cpu),
+            ctypes.c_int(consistency_model),
             ctypes.c_int(snapshot_clock),
             ctypes.c_int(resume_clock),
             ctypes.c_int(update_sort_policy),
@@ -100,26 +104,26 @@ class PSTable(object):
 
     @staticmethod
     def create_table(table_id = 0,
-                       table_staleness = 0,
-                       row_type = 0,
-                       row_capacity = 1,
-                       oplog_dense_serialized = False,
-                       row_oplog_type = 1,
-                       dense_row_oplog_capacity = 0,
-                       server_push_row_upper_bound = 100,
-                       server_table_logic = -1,
-                       version_maintain = False,
-                       process_cache_capacity = 0,
-                       thread_cache_capacity = 1,
-                       oplog_capacity = 0,
-                       oplog_type = 0,#Sparse
-                       append_only_oplog_type = 0,#Inc
-                       append_only_buff_capacity = 1024*1024,
-                       per_thread_append_only_buff_pool_size = 3,
-                       bg_apply_append_oplog_freq = 4,
-                       process_storage_type = 1,#BoundedSparse
-                       no_oplog_replay = False,
-                       client_send_oplog_upper_bound = 100):
+                     table_staleness = 0,
+                     row_type = 0,
+                     row_capacity = 1,
+                     oplog_dense_serialized = False,
+                     row_oplog_type = 1,
+                     dense_row_oplog_capacity = 0,
+                     server_push_row_upper_bound = 100,
+                     server_table_logic = -1,
+                     version_maintain = False,
+                     process_cache_capacity = 0,
+                     thread_cache_capacity = 1,
+                     oplog_capacity = 0,
+                     oplog_type = 0,#Sparse
+                     append_only_oplog_type = 0,#Inc
+                     append_only_buff_capacity = 1024*1024,
+                     per_thread_append_only_buff_pool_size = 3,
+                     bg_apply_append_oplog_freq = 4,
+                     process_storage_type = 1,#BoundedSparse
+                     no_oplog_replay = False,
+                     client_send_oplog_upper_bound = 100):
         ret = ctypes.c_bool()
         check_call(_LIB.MXPSCreateTable(
             ctypes.c_int(table_id),
@@ -157,9 +161,9 @@ class PSTable(object):
         return ret.value
 
     @staticmethod
-    def get_table_or_die():
+    def get_table_or_die(table_id):
         handle = PSTableHandle()
-        check_call(_LIB.MXPSGetTableOrDie(ctypes.byref(handle)))
+        check_call(_LIB.MXPSGetTableOrDie(0, ctypes.c_int(table_id), ctypes.byref(handle)))
         return handle
 
     @staticmethod
@@ -209,10 +213,10 @@ class PSTable(object):
 
     @staticmethod
     def table_batch_incx(handle,
-                           num_rows_per_table,
-                           table_row_capacity,
-                           key,
-                           out):
+                         num_rows_per_table,
+                         table_row_capacity,
+                         key,
+                         out):
         ckeys, cvals = _ctype_key_value(key, out)
         check_call(_LIB.MXPSTableBatchIncX(handle,
                                            ctypes.c_int(num_rows_per_table),
@@ -223,11 +227,11 @@ class PSTable(object):
 
     @staticmethod
     def table_getx(handle,
-                    num_rows_per_table,
-                    table_row_capacity,
-                    clock,
-                    key,
-                    out):
+                   num_rows_per_table,
+                   table_row_capacity,
+                   clock,
+                   key,
+                   out):
         assert(out is not None)
         ckeys, cvals = _ctype_key_value(key, out)
         check_call(_LIB.MXPSTableGetX(handle,
