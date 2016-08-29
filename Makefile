@@ -89,8 +89,8 @@ ifeq ($(USE_DIST_KVSTORE), 1)
 	LDFLAGS += $(PS_LDFLAGS_A)
 endif
 
-# petuum-ps
-PETUUM_ROOT = $(ROOTDIR)/ps
+# bosen
+PETUUM_ROOT = $(ROOTDIR)/bosen
 include $(ROOTDIR)/make/petuum-ps.mk
 CFLAGS += $(PETUUM_INCFLAGS)
 CFLAGS += $(PETUUM_CXXFLAGS)
