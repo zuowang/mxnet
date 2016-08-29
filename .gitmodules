@@ -19,3 +19,6 @@
 [submodule "third_party"]
 	path = third_party
 	url = https://github.com/petuum/third_party.git
+[submodule "bosen"]
+	path = bosen
+	url = https://github.com/zuowang/bosen.git
